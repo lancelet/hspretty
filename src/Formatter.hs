@@ -13,7 +13,8 @@ newtype Formatter = Formatter
   { -- | Run the formatter.
     --
     -- This accepts a relative path to a file and returns a formatting
-    -- directive for that file.
+    -- directive for that file. This is a pure function: it can only inspect
+    -- the name of the file, it should NOT try to perform any IO.
     runFormat :: Path Rel File -> FormattingDirective
   }
 
@@ -25,6 +26,10 @@ data FormattingDirective
     DoNotFormat
   | -- | Formatter, which, given the content of a file returns a formatting
     --   result.
+    --
+    -- This is a pure function. For some formatters, it may be necessary to
+    -- run this action using 'unsafePerformIO', but in that case, every effort
+    -- should still be made to ensure it behaves as a pure function.
     Format (FileContent -> FormattingResult FileContent)
 
 -- | Result of running a formatter.
