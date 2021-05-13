@@ -61,9 +61,9 @@ newtype ErrorMessage = ErrorMessage
 -- | Run a formatter in IO on a single file.
 --
 -- This operation checks if the formatter can run on the provided file. If it
--- can run then the file is loaded, and the formatter is run. If the run mode
--- is 'Format' then the new formatted output is written to the file, otherwise
--- the file is left as-is.
+-- can run then the file is loaded, and the formatter is run. If the run mode is
+-- 'RunMode.Format' then the new formatted output is written to the file,
+-- otherwise the file is left as-is.
 runFormatIO ::
   -- | Run mode: either we're only checking, or we're also formatting.
   RunMode ->
