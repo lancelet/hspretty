@@ -91,7 +91,7 @@ runFormatIO runMode formatter parentDir file =
               pure (Changed ())
         Error message -> pure (Error message)
 
--- | Read a relative file as a 'ByteString'.
+-- | Read a relative file into 'FileContent'.
 readRelativeFile ::
   -- | Path to the parent directory of the file.
   Path Abs Dir ->
@@ -104,7 +104,7 @@ readRelativeFile parentDir file = FileContent <$> ByteString.readFile path
     path :: FilePath
     path = relativeFilePath parentDir file
 
--- | Write a relative file as a 'ByteString'.
+-- | Write a relative file from 'FileContent'.
 writeRelativeFile ::
   -- | Path of the parent directory of the file.
   Path Abs Dir ->
