@@ -41,6 +41,7 @@ library
     , bytestring  ^>=0.10.12.0
     , path        ^>=0.8.0
     , text-short  ^>=0.1.3
+    , unliftio    ^>=0.2.16
     , void        ^>=0.7.3
 
 executable hspretty

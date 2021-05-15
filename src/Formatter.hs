@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 -- |
 -- Description : Formatter types and operations.
 --
@@ -15,8 +17,8 @@
 -- return a 'Format' constructor containing the formatting operation.
 --
 -- All aspects of the 'Formatter' operation are pure or "effectively pure". If
--- 'IO' operations are required, they should be implemented in 'unsafePerformIO'
--- as effectively-pure operations.
+-- 'IO' operations are required, they should be implemented in
+-- 'System.IO.Unsafe.unsafePerformIO' as effectively-pure operations.
 module Formatter
   ( -- * Types
 
@@ -37,10 +39,13 @@ where
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as ByteString
 import Data.Text.Short (ShortText)
+import qualified Data.Text.Short as ShortText
 import Path (Abs, Dir, File, Path, Rel, (</>))
 import qualified Path
 import RunMode (RunMode)
 import qualified RunMode
+import UnliftIO (IOException)
+import qualified UnliftIO
 
 -- | Formatter.
 newtype Formatter = Formatter
@@ -61,14 +66,16 @@ data FormattingDirective
   | -- | Formatter, which, given the content of a file returns a formatting
     --   result.
     --
-    -- This is a pure function. For some formatters, it may be necessary to
-    -- run this action using 'unsafePerformIO', but in that case, every effort
-    -- should still be made to ensure it behaves as a pure function.
+    -- This is a pure function. For some formatters, it may be necessary to run
+    -- this action using 'System.IO.Unsafe.unsafePerformIO', but in that case,
+    -- every effort should still be made to ensure it behaves as a pure
+    -- function.
     Format (FileContent -> FormattingResult FileContent)
 
 -- | Result of running a formatter.
 --
--- The type parameter 'a' is the result returned when formatting has changed.
+-- The type parameter @a@ is the type of values returned when formatting has
+-- changed.
 data FormattingResult a
   = -- | The formatter decided not to format the file after inspecting it.
     NotFormatted
@@ -113,32 +120,53 @@ runFormatIO runMode formatter parentDir file =
   case runFormat formatter file of
     DoNotFormat -> pure NotFormatted
     Format formatFn -> do
-      content <- readRelativeFile parentDir file
-      case formatFn content of
-        NotFormatted -> pure NotFormatted
-        Unchanged -> pure Unchanged
-        Changed newContent -> do
-          case runMode of
-            RunMode.CheckOnly -> pure (Changed ())
-            RunMode.Format -> do
-              writeRelativeFile parentDir file newContent
-              pure (Changed ())
-        Error message -> pure (Error message)
+      readResult <- readRelativeFile parentDir file
+      case readResult of
+        Left message -> pure (Error message)
+        Right content ->
+          case formatFn content of
+            NotFormatted -> pure NotFormatted
+            Unchanged -> pure Unchanged
+            Error message -> pure (Error message)
+            Changed newContent -> do
+              case runMode of
+                RunMode.CheckOnly -> pure (Changed ())
+                RunMode.Format -> do
+                  writeResult <- writeRelativeFile parentDir file newContent
+                  case writeResult of
+                    Left message -> pure (Error message)
+                    Right () -> pure (Changed ())
 
 -- | Read a relative file into 'FileContent'.
+--
+-- If the action is unsuccessful then an 'ErrorMessage' is returned.
 readRelativeFile ::
   -- | Path to the parent directory of the file.
   Path Abs Dir ->
   -- | Path of the file relative to the parent directory.
   Path Rel File ->
   -- | IO action containing the file content.
-  IO FileContent
-readRelativeFile parentDir file = FileContent <$> ByteString.readFile path
+  IO (Either ErrorMessage FileContent)
+readRelativeFile parentDir file = UnliftIO.catchIO action recover
   where
+    action :: IO (Either ErrorMessage FileContent)
+    action = Right . FileContent <$> ByteString.readFile path
+
+    recover :: IOException -> IO (Either ErrorMessage FileContent)
+    recover ioe = pure . Left . ErrorMessage $ message
+      where
+        message :: ShortText
+        message = "hspretty: Error reading file: " <> exceptionMessage
+
+        exceptionMessage :: ShortText
+        exceptionMessage = ShortText.pack . UnliftIO.displayException $ ioe
+
     path :: FilePath
     path = relativeFilePath parentDir file
 
 -- | Write a relative file from 'FileContent'.
+--
+-- If the action is unsuccessful then an 'ErrorMessage' is returned.
 writeRelativeFile ::
   -- | Path of the parent directory of the file.
   Path Abs Dir ->
@@ -147,9 +175,21 @@ writeRelativeFile ::
   -- | Content of the file.
   FileContent ->
   -- | IO action that writes the file content.
-  IO ()
-writeRelativeFile parentDir file content = ByteString.writeFile path bs
+  IO (Either ErrorMessage ())
+writeRelativeFile parentDir file content = UnliftIO.catchIO action recover
   where
+    action :: IO (Either ErrorMessage ())
+    action = ByteString.writeFile path bs >> pure (Right ())
+
+    recover :: IOException -> IO (Either ErrorMessage ())
+    recover ioe = pure . Left . ErrorMessage $ message
+      where
+        message :: ShortText
+        message = "hspretty: Error writing file: " <> exceptionMessage
+
+        exceptionMessage :: ShortText
+        exceptionMessage = ShortText.pack . UnliftIO.displayException $ ioe
+
     bs :: ByteString
     bs = unFileContent content
 
