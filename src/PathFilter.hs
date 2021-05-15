@@ -26,7 +26,7 @@ fromBool :: Bool -> PathAccept
 fromBool True = Accept
 fromBool False = Reject
 
--- | Path filter: examing a relative file and decide if we accept it.
+-- | Path filter: examine a relative file and decide if we accept it.
 newtype PathFilter = PathFilter
   { unPathFilter :: Path Rel File -> PathAccept
   }
