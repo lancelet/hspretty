@@ -1,3 +1,5 @@
+-- |
+-- Description : Run mode: check only or format.
 module RunMode
   ( RunMode (CheckOnly, Format),
   )
