@@ -35,6 +35,7 @@ library
   hs-source-dirs:  src
   exposed-modules:
     Formatter
+    PathFilter
     RunMode
 
   build-depends:
