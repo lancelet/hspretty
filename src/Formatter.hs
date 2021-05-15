@@ -1,4 +1,38 @@
-module Formatter where
+-- |
+-- Description : Formatter types and operations.
+--
+-- 'Formatter' is a (potential) formatter for a file. It contains a method,
+-- 'runFormat', which takes a relative path to a file and, by inspecting the
+-- path alone, must decide whether to format the file or not. To specify if the
+-- file will be formatted by that formatter, it returns a 'FormattingDirective'.
+--
+-- If the 'FormattingDirective' is 'Format' then that constructor supplies a
+-- function which can take the 'FileContent', and return a 'FormattingResult'.
+-- In turn, the 'FormattingResult' specifies the result of formatting.
+--
+-- To implement a new 'Formatter', return a new 'Formatter' instance, which
+-- inspects the file path and, if the file can be formatted by that 'Formatter',
+-- return a 'Format' constructor containing the formatting operation.
+--
+-- All aspects of the 'Formatter' operation are pure or "effectively pure". If
+-- 'IO' operations are required, they should be implemented in 'unsafePerformIO'
+-- as effectively-pure operations.
+module Formatter
+  ( -- * Types
+
+    -- ** Formatting
+    Formatter (..),
+    FormattingDirective (..),
+    FormattingResult (..),
+
+    -- ** Miscellaneous
+    FileContent (..),
+    ErrorMessage (..),
+
+    -- * IO Actions
+    runFormatIO,
+  )
+where
 
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as ByteString
