@@ -1,6 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+-- |
+-- Description : Command-line interface.
+--
+-- This module performs the command-line interface for the formatter, and
+-- plumbs formatting actions through a streaming interface.
 module CLI where
 
 import Data.Function ((&))
@@ -62,10 +67,18 @@ run = do
           ( asyncly . maxThreads nThreads $
               ( listDirRecursive dir
                   & S.map (fromJustUnsafe . Path.stripProperPrefix dir)
-                  & S.filter (PathFilter.toBool . PathFilter.unPathFilter pathFilter)
+                  & S.filter
+                    ( PathFilter.toBool
+                        . PathFilter.unPathFilter pathFilter
+                    )
                   & S.mapM
                     ( \relFile -> do
-                        result <- Formatter.runFormatIO (runMode args) formatter dir relFile
+                        result <-
+                          Formatter.runFormatIO
+                            (runMode args)
+                            formatter
+                            dir
+                            relFile
                         pure (relFile, result)
                     )
               )
@@ -73,6 +86,7 @@ run = do
           & S.trace (uncurry (Log.report lg))
   let noChange = and changed
 
+  -- report on the overall outcome if necessary
   case runMode args of
     RunMode.Format -> System.Exit.exitSuccess
     RunMode.CheckOnly -> do

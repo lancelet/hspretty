@@ -1,6 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Log where
+-- |
+-- Description : Logging of CLI actions.
+module Log
+  ( -- * Types
+    Log (..),
+
+    -- ** Default Logger
+    defaultLog,
+  )
+where
 
 import qualified Data.Text as Text
 import qualified Data.Text.IO
@@ -11,11 +20,15 @@ import qualified Formatter
 import Path (File, Path, Rel, fromRelFile)
 import qualified System.Console.ANSI as ANSI
 
+-- | A logger.
+--
+--   All messages set to the user go through this interface.
 data Log = Log
   { info :: ShortText -> IO (),
     report :: Path Rel File -> FormattingResult () -> IO ()
   }
 
+-- | Default logger.
 defaultLog :: Log
 defaultLog =
   Log
