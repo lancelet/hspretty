@@ -55,6 +55,11 @@ instance Monoid PathFilter where
 pfNoHidden :: PathFilter
 pfNoHidden = componentFilter (fromBool . ShortText.isPrefixOf ".")
 
+-- | PathFilter that excludes any path components that are named
+--   @dist-newstyle@.
+pfNoDistNewstyle :: PathFilter
+pfNoDistNewstyle = componentFilter (fromBool . (==) "dist-newstyle")
+
 -- | PathFilter that keeps only files with a given extension.
 --
 -- The extension to be tested should start with a period.

@@ -40,6 +40,9 @@ module Formatter
 
     -- * Functions
 
+    -- ** Tests
+    isUnchanged,
+
     -- ** Conversions
     fileContentToUtf8,
     utf8TextToFileContent,
@@ -68,6 +71,29 @@ newtype Formatter = Formatter
     -- the name of the file, it should NOT try to perform any IO.
     runFormat :: Path Rel File -> FormattingDirective
   }
+
+instance Semigroup Formatter where
+  f1 <> f2 = Formatter $ \path ->
+    case runFormat f1 path of
+      DoNotFormat -> runFormat f2 path
+      Format g1 ->
+        case runFormat f2 path of
+          DoNotFormat -> Format g1
+          Format g2 -> Format (sequenceFmtFns g1 g2)
+    where
+      sequenceFmtFns ::
+        (FileContent -> FormattingResult FileContent) ->
+        (FileContent -> FormattingResult FileContent) ->
+        (FileContent -> FormattingResult FileContent)
+      sequenceFmtFns a b = \content ->
+        case a content of
+          NotFormatted -> b content
+          Unchanged -> b content
+          Changed content' -> b content'
+          Error message -> Error message
+
+instance Monoid Formatter where
+  mempty = Formatter $ const DoNotFormat
 
 -- | Formatting directive.
 --
@@ -98,6 +124,13 @@ data FormattingResult a
   | -- | An error occurred while formatting.
     Error !ErrorMessage
   deriving (Eq)
+
+-- | Return 'True' if a 'FormattingResult' indicates definitively that a file
+--   was unchanged after successful processing.
+isUnchanged :: FormattingResult a -> Bool
+isUnchanged NotFormatted = True
+isUnchanged Unchanged = True
+isUnchanged _ = False
 
 -- | Content of a file for formatting.
 newtype FileContent = FileContent
