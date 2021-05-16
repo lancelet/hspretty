@@ -35,14 +35,18 @@ library
   hs-source-dirs:  src
   exposed-modules:
     Formatter
+    Formatters.CabalFmt
     Formatters.Ormolu
     PathFilter
     RunMode
 
   build-depends:
     , bytestring  ^>=0.10.12.0
+    , directory   ^>=1.3.6.0
     , ormolu      ^>=0.1.4.1
     , path        ^>=0.8.0
+    , path-io     ^>=1.6.2
+    , process     ^>=1.6.11.0
     , text        ^>=1.2.4.1
     , text-short  ^>=0.1.3
     , unliftio    ^>=0.2.16

@@ -33,6 +33,10 @@ module Formatter
 
     -- * IO Actions
     runFormatIO,
+    readRelativeFile,
+    readAbsoluteFile,
+    writeRelativeFile,
+    writeAbsoluteFile,
 
     -- * Functions
 
@@ -155,8 +159,21 @@ readRelativeFile ::
   Path Rel File ->
   -- | IO action containing the file content.
   IO (Either ErrorMessage FileContent)
-readRelativeFile parentDir file = UnliftIO.catchIO action recover
+readRelativeFile parentDir file = readAbsoluteFile (parentDir </> file)
+
+-- | Read an absolute file into 'FileContent'.
+--
+-- If the action is unsuccessful then an 'ErrorMessage' is returned.
+readAbsoluteFile ::
+  -- | Path of the file to write.
+  Path Abs File ->
+  -- | IO action.
+  IO (Either ErrorMessage FileContent)
+readAbsoluteFile file = UnliftIO.catchIO action recover
   where
+    path :: FilePath
+    path = Path.toFilePath file
+
     action :: IO (Either ErrorMessage FileContent)
     action = Right . FileContent <$> ByteString.readFile path
 
@@ -164,13 +181,12 @@ readRelativeFile parentDir file = UnliftIO.catchIO action recover
     recover ioe = pure . Left . ErrorMessage $ message
       where
         message :: ShortText
-        message = "hspretty: Error reading file: " <> exceptionMessage
-
-        exceptionMessage :: ShortText
-        exceptionMessage = ShortText.pack . UnliftIO.displayException $ ioe
-
-    path :: FilePath
-    path = relativeFilePath parentDir file
+        message =
+          ShortText.pack $
+            "hspretty: Error reading file \""
+              <> path
+              <> "\": "
+              <> UnliftIO.displayException ioe
 
 -- | Write a relative file from 'FileContent'.
 --
@@ -184,8 +200,26 @@ writeRelativeFile ::
   FileContent ->
   -- | IO action that writes the file content.
   IO (Either ErrorMessage ())
-writeRelativeFile parentDir file content = UnliftIO.catchIO action recover
+writeRelativeFile parentDir file = writeAbsoluteFile (parentDir </> file)
+
+-- | Write an absolute file from 'FileContent'
+--
+-- If the action is unsuccessful then an 'ErrorMessage' is returned.
+writeAbsoluteFile ::
+  -- | Absolute path of the file to write.
+  Path Abs File ->
+  -- | Content of the file.
+  FileContent ->
+  -- | IO action.
+  IO (Either ErrorMessage ())
+writeAbsoluteFile file content = UnliftIO.catchIO action recover
   where
+    path :: FilePath
+    path = Path.toFilePath file
+
+    bs :: ByteString
+    bs = unFileContent content
+
     action :: IO (Either ErrorMessage ())
     action = ByteString.writeFile path bs >> pure (Right ())
 
@@ -193,35 +227,12 @@ writeRelativeFile parentDir file content = UnliftIO.catchIO action recover
     recover ioe = pure . Left . ErrorMessage $ message
       where
         message :: ShortText
-        message = "hspretty: Error writing file: " <> exceptionMessage
-
-        exceptionMessage :: ShortText
-        exceptionMessage = ShortText.pack . UnliftIO.displayException $ ioe
-
-    bs :: ByteString
-    bs = unFileContent content
-
-    path :: FilePath
-    path = relativeFilePath parentDir file
-
--- | Find the 'FilePath' of a file relative to a directory.
---
--- For example:
---
--- >>> :set -XQuasiQuotes
--- >>> import qualified Path
--- >>> parent = [Path.absdir|/home/someuser/project|]
--- >>> child = [Path.relfile|somedir/somefile.txt|]
--- >>> relativeFilePath parent child
--- "/home/someuser/project/somedir/somefile.txt"
-relativeFilePath ::
-  -- | Path of the parent directory of the file.
-  Path Abs Dir ->
-  -- | Path of the file relative to the parent directory.
-  Path Rel File ->
-  -- | FilePath of the complete, absolute file.
-  FilePath
-relativeFilePath parentDir file = Path.toFilePath (parentDir </> file)
+        message =
+          ShortText.pack $
+            "hspretty: Error writing file \""
+              <> path
+              <> "\": "
+              <> UnliftIO.displayException ioe
 
 -- | Convert 'FileContent' from an underlying 'ByteString' to UTF-8.
 --
