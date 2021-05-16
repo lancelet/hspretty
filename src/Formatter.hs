@@ -33,11 +33,19 @@ module Formatter
 
     -- * IO Actions
     runFormatIO,
+
+    -- * Functions
+
+    -- ** Conversions
+    fileContentToUtf8,
+    utf8TextToFileContent,
   )
 where
 
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as ByteString
+import Data.Text (Text)
+import qualified Data.Text.Encoding as Encoding
 import Data.Text.Short (ShortText)
 import qualified Data.Text.Short as ShortText
 import Path (Abs, Dir, File, Path, Rel, (</>))
@@ -197,6 +205,15 @@ writeRelativeFile parentDir file content = UnliftIO.catchIO action recover
     path = relativeFilePath parentDir file
 
 -- | Find the 'FilePath' of a file relative to a directory.
+--
+-- For example:
+--
+-- >>> :set -XQuasiQuotes
+-- >>> import qualified Path
+-- >>> parent = [Path.absdir|/home/someuser/project|]
+-- >>> child = [Path.relfile|somedir/somefile.txt|]
+-- >>> relativeFilePath parent child
+-- "/home/someuser/project/somedir/somefile.txt"
 relativeFilePath ::
   -- | Path of the parent directory of the file.
   Path Abs Dir ->
@@ -205,3 +222,37 @@ relativeFilePath ::
   -- | FilePath of the complete, absolute file.
   FilePath
 relativeFilePath parentDir file = Path.toFilePath (parentDir </> file)
+
+-- | Convert 'FileContent' from an underlying 'ByteString' to UTF-8.
+--
+-- If this operation fails with a unicode error, the underlying exception is
+-- converted to an 'ErrorMessage'.
+fileContentToUtf8 ::
+  -- | Content to convert to UTF-8.
+  FileContent ->
+  -- | Path to the relative file, if known (used for error messages).
+  Maybe (Path Rel File) ->
+  -- | Either an error message, or the file read as UTF-8 text.
+  Either ErrorMessage Text
+fileContentToUtf8 fileContent maybeFile =
+  case Encoding.decodeUtf8' (unFileContent fileContent) of
+    Right txt -> Right txt
+    Left unicodeException ->
+      Left . ErrorMessage . ShortText.pack $
+        case maybeFile of
+          Nothing ->
+            "hspretty: error decoding file contents as UTF-8: "
+              <> UnliftIO.displayException unicodeException
+          Just file ->
+            "hspretty: error decoding file \""
+              <> Path.fromRelFile file
+              <> "\" as UTF-8: "
+              <> UnliftIO.displayException unicodeException
+
+-- | Encode 'Text' as 'FileContent' in UTF-8.
+utf8TextToFileContent ::
+  -- | Text to encode.
+  Text ->
+  -- | Text encoded as 'FileContent'.
+  FileContent
+utf8TextToFileContent = FileContent . Encoding.encodeUtf8

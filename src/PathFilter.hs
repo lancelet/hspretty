@@ -15,6 +15,7 @@ data PathAccept
     Accept
   | -- | Filter rejects the path.
     Reject
+  deriving (Show)
 
 -- | Convert a 'PathAccept' type to a 'Bool' suitable for filtering.
 toBool :: PathAccept -> Bool
@@ -42,12 +43,31 @@ instance Monoid PathFilter where
 
 -- | PathFilter that excludes hidden files or directories, starting with a
 --   period.
+--
+-- For example:
+--
+-- >>> :set -XQuasiQuotes
+-- >>> import qualified Path
+-- >>> unPathFilter pfNoHidden [Path.relfile|src/.hidden/something.txt|]
+-- Reject
+-- >>> unPathFilter pfNoHidden [Path.relfile|src/nothidden/something.txt|]
+-- Accept
 pfNoHidden :: PathFilter
 pfNoHidden = componentFilter (fromBool . ShortText.isPrefixOf ".")
 
 -- | PathFilter that keeps only files with a given extension.
 --
 -- The extension to be tested should start with a period.
+--
+-- For example:
+--
+-- >>> :set -XQuasiQuotes -XOverloadedStrings
+-- >>> import qualified Path
+-- >>> pfHs = pfExtension ".hs"
+-- >>> unPathFilter pfHs [Path.relfile|src/ModuleA/ModuleB.hs|]
+-- Accept
+-- >>> unPathFilter pfHs [Path.relfile|src/ModuleA/something.txt|]
+-- Reject
 pfExtension :: ShortText -> PathFilter
 pfExtension extension = PathFilter $ \path -> fromBool (extensionMatches path)
   where
@@ -63,6 +83,15 @@ componentFilter f = PathFilter $ \path ->
   fromBool . not . any (toBool . f) . pathComponents $ path
 
 -- | Return the components of a path as a list.
+--
+-- For example:
+--
+-- >>> :set -XQuasiQuotes
+-- >>> import qualified Path
+-- >>> pathComponents [Path.relfile|dir/package/file.txt|]
+-- ["dir","package","file.txt"]
+-- >>> pathComponents [Path.relfile|file.txt|]
+-- ["file.txt"]
 pathComponents :: Path Rel File -> [ShortText]
 pathComponents filePath = components
   where
@@ -81,7 +110,7 @@ pathComponents filePath = components
       | otherwise = curDirComp dir : go (Path.parent dir)
       where
         isTopDir :: Path Rel Dir -> Bool
-        isTopDir d = Path.fromRelDir d == "."
+        isTopDir d = Path.parent d == d
 
         curDirComp :: Path Rel Dir -> ShortText
         curDirComp d =

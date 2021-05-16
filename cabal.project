@@ -1,0 +1,4 @@
+packages: ./*.cabal
+
+-- This is required for doctest: https://github.com/haskell/cabal/issues/6087
+write-ghc-environment-files: always
