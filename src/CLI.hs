@@ -25,7 +25,7 @@ import PathFilter (PathFilter)
 import qualified PathFilter
 import RunMode (RunMode)
 import qualified RunMode
-import Streamly (AsyncT, asyncly, maxThreads, serially)
+import Streamly.Prelude (AsyncT, fromAsync, fromSerial, maxThreads)
 import qualified Streamly.Prelude as S
 import qualified System.Exit
 
@@ -63,8 +63,8 @@ run = do
   changed :: [Bool] <-
     S.toList $
       S.map (Formatter.isUnchanged . snd) $
-        serially
-          ( asyncly . maxThreads nThreads $
+        fromSerial
+          ( fromAsync . maxThreads nThreads $
               ( listDirRecursive dir
                   & S.map (fromJustUnsafe . Path.stripProperPrefix dir)
                   & S.filter
